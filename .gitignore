@@ -1,0 +1,21 @@
+cat > .gitignore << 'EOF'
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+.env
+.env.*
+.pytest_cache/
+.mypy_cache/
+.coverage*
+
+# Local data
+homesentinel/storage/*.db
+
+# OS / editors
+.DS_Store
+.vscode/
+.idea/
+EOF
