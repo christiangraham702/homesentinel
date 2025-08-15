@@ -1,0 +1,18 @@
+[project]
+name = "homesentinel"
+version = "0.1.0"
+description = "HomeSentinel: personal network monitoring & risk dashboard"
+readme = "homesentinel/README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "pydantic>=2.6",
+  "python-dotenv>=1.0",
+  "requests>=2.32",
+  # We'll add scapy and nmap wrapper later; for now keep it minimal
+]
+
+[project.scripts]
+homesentinel-discover = "homesentinel.sensor.discover:main"
+
+[tool.ruff]
+line-length = 100
