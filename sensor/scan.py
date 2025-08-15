@@ -15,34 +15,56 @@ from core.nmap_parse import services_from_nmap_xml
 from core.jsonutil import to_json
 from core.config import settings
 
-
-def run_nmap(host: str, ports: str) -> str:
-    """
-    Run a focused service scan
-        -sV :version detection
-        -T4 : faster timing
-        -Pn : don't require ICMP ping to consider host up
-        -oX : write XML to stdout
-    """
-    cmd = [
-        "nmap",
+# add near top
+PROFILES = {
+    "fast": [
         "-sV",
         "-Pn",
         "-n",
         "-T4",
-        "-oX",
-        "-",
-        "-p",
-        ports,
-        host,
-    ]
-    # timeouts to avoid hangs
-    try:
-        xml = subprocess.check_output(cmd, text=True, timeout=240)
-        return xml
-    except subprocess.CalledProcessError as e:
-        # nmap returns non-zero sometimes so better than nothing
-        raise RuntimeError(f"nmap failed for {host}: {e}") from e
+        "--host-timeout",
+        "60s",
+        "--max-retries",
+        "1",
+    ],
+    "standard": [
+        "-sV",
+        "-Pn",
+        "-n",
+        "-T3",
+        "--max-retries",
+        "2",
+    ],
+    "deep": [
+        "-sV",
+        "-Pn",
+        "-n",
+        "-T3",
+        "--max-retries",
+        "2",
+        "--script",
+        "default,safe,version,discovery",
+    ],
+    "udp100": [
+        "-sU",
+        "-Pn",
+        "-n",
+        "-T2",
+        "--top-ports",
+        "100",
+        "--max-retries",
+        "2",
+    ],
+}
+
+
+def run_nmap(host: str, ports: str | None, profile: str) -> str:
+    base = ["nmap", "-oX", "-"] + PROFILES[profile]
+    if ports and profile != "udp100":
+        base += ["-p", ports]
+    base.append(host)
+    xml = subprocess.check_output(base, text=True, timeout=3600)
+    return xml
 
 
 def _iter_hosts(args) -> Iterable[str]:
@@ -60,13 +82,16 @@ def main():
     ap.add_argument("--host", help="Single host/IP to scan")
     ap.add_argument("--hosts-file", help="FIle with one host/IP per line")
     ap.add_argument("--ports", default=settings.scan_ports, help="POrt spec (e.g., 1-1024,22,80)")
+    ap.add_argument(
+        "--profile", choices=list(PROFILES.keys()), help="Scan shit at: fast|standard|deep|udp100"
+    )
     args = ap.parse_args()
 
     any_host = False
     for host in _iter_hosts(args):
         any_host = True
         print(f"scanning {host}")
-        xml = run_nmap(host, args.ports)
+        xml = run_nmap(host, args.ports, args.profile)
         for svc in services_from_nmap_xml(xml):
             print(to_json(svc))
     if not any_host:
